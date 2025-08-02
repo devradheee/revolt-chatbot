@@ -30,5 +30,5 @@ console.log('\n🎯 Setup completed!');
 console.log('\n📝 Next steps:');
 console.log('1. Edit .env file and add your Gemini API key');
 console.log('2. Run: npm run dev');
-console.log('3. Open http://localhost:3000 in your browser');
+console.log('3. Open http://localhost:3001 in your browser');
 console.log('\n🔑 Get your API key from: https://aistudio.google.com'); 

@@ -34,7 +34,7 @@ try {
     'dotenv',
     '@google/generative-ai'
   ];
-  
+
   requiredDeps.forEach(dep => {
     const hasDep = packageJson.dependencies && packageJson.dependencies[dep];
     console.log(`  ${hasDep ? '✅' : '❌'} ${dep}`);
@@ -81,7 +81,7 @@ if (allFilesExist) {
   console.log('  1. Run: npm install');
   console.log('  2. Copy env.example to .env and add your Gemini API key');
   console.log('  3. Run: npm run dev');
-  console.log('  4. Open http://localhost:3000 in your browser');
+  console.log('  4. Open http://localhost:3001 in your browser');
 } else {
   console.log('  ❌ Some required files are missing');
   console.log('  🔧 Please check the file structure and try again');

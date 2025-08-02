@@ -22,9 +22,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 // Get model based on environment
 const getModelName = () => {
   const env = config.server.environment;
@@ -55,7 +52,7 @@ const processAudioData = async (base64Audio, mimeType) => {
   try {
     // Convert base64 to buffer
     const audioBuffer = Buffer.from(base64Audio, 'base64');
-    
+
     // For now, we'll use the audio as-is since Gemini supports multiple formats
     // In a production environment, you might want to convert to a specific format
     return {
@@ -71,26 +68,33 @@ const processAudioData = async (base64Audio, mimeType) => {
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
-  
+
   let conversation = null;
   let isListening = false;
 
   socket.on('start_conversation', async () => {
     try {
       console.log('Starting conversation for socket:', socket.id);
-      
+
       // Check if API key is configured
       if (!process.env.GEMINI_API_KEY) {
+        console.error('GEMINI_API_KEY not found in environment variables');
+        console.log('Available environment variables:', Object.keys(process.env));
         throw new Error('GEMINI_API_KEY not configured');
       }
-      
+
+      console.log('API Key found, length:', process.env.GEMINI_API_KEY.length);
+
+      // Initialize Gemini AI with API key
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
       // Initialize conversation with Gemini Live API
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: getModelName()
       });
-      
+
       console.log('Using model:', getModelName());
-      
+
       conversation = model.startChat({
         systemInstruction: SYSTEM_INSTRUCTIONS,
         tools: [],
@@ -103,15 +107,15 @@ io.on('connection', (socket) => {
       });
 
       activeConversations.set(socket.id, conversation);
-      
+
       console.log('Conversation started successfully');
-      
+
       // Send welcome message
       socket.emit('conversation_started', {
         message: "Hello! I'm Rev, your Revolt Motors assistant. How can I help you today?",
         audioUrl: null
       });
-      
+
     } catch (error) {
       console.error('Error starting conversation:', error);
       socket.emit('error', { message: 'Failed to start conversation: ' + error.message });
@@ -128,16 +132,16 @@ io.on('connection', (socket) => {
       console.log('Received audio data from socket:', socket.id);
       console.log('Audio data length:', data.audio ? data.audio.length : 0);
       console.log('MIME type:', data.mimeType);
-      
+
       if (!data.audio || data.audio.length === 0) {
         throw new Error('No audio data received');
       }
-      
+
       // Process the audio data
       const processedAudio = await processAudioData(data.audio, data.mimeType);
-      
+
       console.log('Sending audio to Gemini API...');
-      
+
       // Send audio to Gemini Live API
       const result = await conversation.sendMessage({
         contents: [{
@@ -153,21 +157,21 @@ io.on('connection', (socket) => {
 
       console.log('Received response from Gemini');
       const response = result.response;
-      
+
       if (response && response.candidates && response.candidates[0]) {
         const textResponse = response.candidates[0].content.parts[0].text;
-        
+
         console.log('AI Response:', textResponse);
-        
+
         // Emit the text response
         socket.emit('ai_response', {
           text: textResponse,
           isInterrupted: false
         });
-        
+
         // If there's audio in the response, emit it
-        if (response.candidates[0].content.parts[1] && 
-            response.candidates[0].content.parts[1].inlineData) {
+        if (response.candidates[0].content.parts[1] &&
+          response.candidates[0].content.parts[1].inlineData) {
           const audioData = response.candidates[0].content.parts[1].inlineData.data;
           console.log('AI audio response received');
           socket.emit('ai_audio', {
@@ -179,7 +183,7 @@ io.on('connection', (socket) => {
         console.log('No response from AI');
         socket.emit('error', { message: 'No response from AI assistant' });
       }
-      
+
     } catch (error) {
       console.error('Error processing audio:', error);
       socket.emit('error', { message: 'Failed to process audio: ' + error.message });
@@ -198,7 +202,7 @@ io.on('connection', (socket) => {
             }]
           }]
         });
-        
+
         socket.emit('interruption_acknowledged');
       }
     } catch (error) {
@@ -214,8 +218,8 @@ io.on('connection', (socket) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     model: getModelName(),
     environment: config.server.environment
@@ -232,5 +236,5 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${config.server.environment}`);
   console.log(`Model: ${getModelName()}`);
-  console.log(`Visit http://localhost:${PORT} to use the voice chatbot`);
+  console.log(`Visit http://localhost:${PORT}`);
 }); 
