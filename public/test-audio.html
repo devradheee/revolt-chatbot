@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Test - Revolt Chatbot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .recording {
+            background-color: #ff4444;
+            color: white;
+        }
+        .log {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .status.success { background-color: #d4edda; color: #155724; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Audio Recording Test</h1>
+    
+    <div class="test-section">
+        <h2>Microphone Access Test</h2>
+        <button id="testMic">Test Microphone Access</button>
+        <div id="micStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Audio Recording Test</h2>
+        <button id="startRecord">Start Recording</button>
+        <button id="stopRecord" disabled>Stop Recording</button>
+        <div id="recordStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Audio Format Test</h2>
+        <button id="testFormats">Test Audio Formats</button>
+        <div id="formatStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Server Test</h2>
+        <button id="testServer">Test Server Connection</button>
+        <div id="serverStatus" class="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Debug Log</h2>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        class AudioTester {
+            constructor() {
+                this.socket = io();
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.isRecording = false;
+                this.audioStream = null;
+                
+                this.initializeElements();
+                this.initializeEventListeners();
+                this.initializeSocketListeners();
+            }
+            
+            initializeElements() {
+                this.testMicBtn = document.getElementById('testMic');
+                this.startRecordBtn = document.getElementById('startRecord');
+                this.stopRecordBtn = document.getElementById('stopRecord');
+                this.testFormatsBtn = document.getElementById('testFormats');
+                this.testServerBtn = document.getElementById('testServer');
+                
+                this.micStatus = document.getElementById('micStatus');
+                this.recordStatus = document.getElementById('recordStatus');
+                this.formatStatus = document.getElementById('formatStatus');
+                this.serverStatus = document.getElementById('serverStatus');
+                this.debugLog = document.getElementById('debugLog');
+            }
+            
+            initializeEventListeners() {
+                this.testMicBtn.addEventListener('click', () => this.testMicrophone());
+                this.startRecordBtn.addEventListener('click', () => this.startRecording());
+                this.stopRecordBtn.addEventListener('click', () => this.stopRecording());
+                this.testFormatsBtn.addEventListener('click', () => this.testAudioFormats());
+                this.testServerBtn.addEventListener('click', () => this.testServerConnection());
+            }
+            
+            initializeSocketListeners() {
+                this.socket.on('connect', () => {
+                    this.log('Connected to server');
+                });
+                
+                this.socket.on('test_response', (data) => {
+                    this.log('Server test response:', data);
+                    this.updateStatus(this.serverStatus, 'Server test successful', 'success');
+                });
+                
+                this.socket.on('disconnect', () => {
+                    this.log('Disconnected from server');
+                });
+            }
+            
+            async testMicrophone() {
+                try {
+                    this.updateStatus(this.micStatus, 'Testing microphone access...', 'info');
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            sampleRate: 16000,
+                            channelCount: 1,
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        } 
+                    });
+                    
+                    this.log('Microphone access granted');
+                    this.log('Audio tracks:', stream.getAudioTracks().length);
+                    
+                    stream.getTracks().forEach(track => {
+                        this.log('Track settings:', track.getSettings());
+                    });
+                    
+                    this.updateStatus(this.micStatus, 'Microphone access successful', 'success');
+                    
+                    // Stop the stream
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                } catch (error) {
+                    this.log('Microphone access error:', error);
+                    this.updateStatus(this.micStatus, `Microphone error: ${error.message}`, 'error');
+                }
+            }
+            
+            async startRecording() {
+                try {
+                    this.audioStream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            sampleRate: 16000,
+                            channelCount: 1,
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        } 
+                    });
+                    
+                    const supportedTypes = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/mp4',
+                        'audio/wav'
+                    ];
+                    
+                    let selectedType = null;
+                    for (const type of supportedTypes) {
+                        if (MediaRecorder.isTypeSupported(type)) {
+                            selectedType = type;
+                            break;
+                        }
+                    }
+                    
+                    if (!selectedType) {
+                        throw new Error('No supported audio format found');
+                    }
+                    
+                    this.log('Using audio format:', selectedType);
+                    
+                    this.mediaRecorder = new MediaRecorder(this.audioStream, {
+                        mimeType: selectedType
+                    });
+                    
+                    this.audioChunks = [];
+                    this.isRecording = true;
+                    
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.audioChunks.push(event.data);
+                            this.log('Audio chunk received, size:', event.data.size);
+                        }
+                    };
+                    
+                    this.mediaRecorder.onstop = () => {
+                        this.log('Recording stopped');
+                        this.processRecording();
+                    };
+                    
+                    this.mediaRecorder.start(100);
+                    this.startRecordBtn.disabled = true;
+                    this.stopRecordBtn.disabled = false;
+                    this.updateStatus(this.recordStatus, 'Recording...', 'info');
+                    
+                } catch (error) {
+                    this.log('Recording error:', error);
+                    this.updateStatus(this.recordStatus, `Recording error: ${error.message}`, 'error');
+                }
+            }
+            
+            stopRecording() {
+                if (this.isRecording && this.mediaRecorder) {
+                    this.mediaRecorder.stop();
+                    this.isRecording = false;
+                    this.startRecordBtn.disabled = false;
+                    this.stopRecordBtn.disabled = true;
+                    this.updateStatus(this.recordStatus, 'Processing recording...', 'info');
+                }
+                
+                if (this.audioStream) {
+                    this.audioStream.getTracks().forEach(track => track.stop());
+                    this.audioStream = null;
+                }
+            }
+            
+            async processRecording() {
+                if (this.audioChunks.length === 0) {
+                    this.log('No audio chunks to process');
+                    return;
+                }
+                
+                try {
+                    const audioBlob = new Blob(this.audioChunks, { 
+                        type: this.mediaRecorder.mimeType 
+                    });
+                    
+                    this.log('Audio blob created, size:', audioBlob.size, 'type:', audioBlob.type);
+                    
+                    const base64Audio = await this.blobToBase64(audioBlob);
+                    this.log('Audio converted to base64, length:', base64Audio.length);
+                    
+                    // Test sending to server
+                    this.socket.emit('test_audio', {
+                        audio: base64Audio,
+                        mimeType: audioBlob.type
+                    });
+                    
+                    this.updateStatus(this.recordStatus, 'Recording processed and sent to server', 'success');
+                    
+                } catch (error) {
+                    this.log('Error processing recording:', error);
+                    this.updateStatus(this.recordStatus, `Processing error: ${error.message}`, 'error');
+                }
+            }
+            
+            blobToBase64(blob) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const base64 = reader.result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.onerror = () => {
+                        reject(new Error('Failed to convert blob to base64'));
+                    };
+                    reader.readAsDataURL(blob);
+                });
+            }
+            
+            testAudioFormats() {
+                const formats = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/mp4',
+                    'audio/wav',
+                    'audio/ogg',
+                    'audio/aac'
+                ];
+                
+                this.log('Testing audio formats:');
+                formats.forEach(format => {
+                    const supported = MediaRecorder.isTypeSupported(format);
+                    this.log(`${format}: ${supported ? 'SUPPORTED' : 'NOT SUPPORTED'}`);
+                });
+                
+                this.updateStatus(this.formatStatus, 'Audio format test completed', 'success');
+            }
+            
+            testServerConnection() {
+                this.updateStatus(this.serverStatus, 'Testing server connection...', 'info');
+                
+                fetch('/test-audio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        audio: 'test-data',
+                        mimeType: 'audio/test'
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    this.log('Server test response:', data);
+                    this.updateStatus(this.serverStatus, 'Server connection successful', 'success');
+                })
+                .catch(error => {
+                    this.log('Server test error:', error);
+                    this.updateStatus(this.serverStatus, `Server error: ${error.message}`, 'error');
+                });
+            }
+            
+            updateStatus(element, message, type) {
+                element.textContent = message;
+                element.className = `status ${type}`;
+            }
+            
+            log(...args) {
+                const timestamp = new Date().toLocaleTimeString();
+                const message = `[${timestamp}] ${args.join(' ')}`;
+                this.debugLog.textContent += message + '\n';
+                this.debugLog.scrollTop = this.debugLog.scrollHeight;
+                console.log(...args);
+            }
+        }
+        
+        // Initialize the tester when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AudioTester();
+        });
+    </script>
+</body>
+</html> 

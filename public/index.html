@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rev - Revolt Motors Voice Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-car"></i>
+                <h1>Rev</h1>
+            </div>
+            <p class="subtitle">Revolt Motors Voice Assistant</p>
+        </header>
+
+        <main class="main-content">
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        <div class="message-content">
+                            <i class="fas fa-robot"></i>
+                            <p>Hello! I'm Rev, your Revolt Motors assistant. Click the microphone to start talking!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="status-indicator" id="statusIndicator">
+                    <span class="status-text">Ready</span>
+                </div>
+                
+                <div class="button-container">
+                    <button class="control-btn start-btn" id="startBtn">
+                        <i class="fas fa-microphone"></i>
+                        <span>Start Conversation</span>
+                    </button>
+                    
+                    <button class="control-btn mic-btn" id="micBtn" disabled>
+                        <i class="fas fa-microphone"></i>
+                        <span>Hold to Talk</span>
+                    </button>
+                    
+                    <button class="control-btn stop-btn" id="stopBtn" disabled>
+                        <i class="fas fa-stop"></i>
+                        <span>Stop</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <div class="wave-container" id="waveContainer" style="display: none;">
+            <div class="wave">
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html> 
