@@ -10,15 +10,26 @@ const config = require('./config');
 
 const app = express();
 const server = http.createServer(app);
+
+// Configure Socket.IO for production
 const io = socketIo(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://your-app-name.vercel.app", "https://your-custom-domain.com"] 
+      : "*",
+    methods: ["GET", "POST"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ["https://your-app-name.vercel.app", "https://your-custom-domain.com"] 
+    : "*",
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -234,10 +245,18 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const PORT = config.server.port;
+// Serve test page
+app.get('/test-audio', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'test-audio.html'));
+});
+
+const PORT = process.env.PORT || config.server.port || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${config.server.environment}`);
   console.log(`Model: ${getModelName()}`);
   console.log(`Visit http://localhost:${PORT} to use the voice chatbot`);
-}); 
+});
+
+// Export for Vercel
+module.exports = app; 

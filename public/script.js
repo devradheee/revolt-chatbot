@@ -1,6 +1,16 @@
 class VoiceChatbot {
     constructor() {
-        this.socket = io();
+        // Connect to server based on environment
+        const serverUrl = window.location.hostname === 'localhost' 
+            ? window.location.origin 
+            : window.location.origin;
+        
+        this.socket = io(serverUrl, {
+            transports: ['websocket', 'polling'],
+            upgrade: true,
+            rememberUpgrade: true
+        });
+        
         this.mediaRecorder = null;
         this.audioChunks = [];
         this.isRecording = false;
@@ -70,6 +80,11 @@ class VoiceChatbot {
             this.updateStatus('Disconnected', 'error');
             this.disableMicButton();
             this.disableTextInput();
+        });
+
+        this.socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            this.updateStatus('Connection failed', 'error');
         });
     }
 
