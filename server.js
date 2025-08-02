@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
       // Initialize Gemini AI with API key
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-      // Initialize conversation with Gemini Live API
+      // Initialize conversation with Gemini API
       const model = genAI.getGenerativeModel({
         model: getModelName()
       });
@@ -97,7 +97,6 @@ io.on('connection', (socket) => {
 
       conversation = model.startChat({
         systemInstruction: SYSTEM_INSTRUCTIONS,
-        tools: [],
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -132,77 +131,81 @@ io.on('connection', (socket) => {
       console.log('Received audio data from socket:', socket.id);
       console.log('Audio data length:', data.audio ? data.audio.length : 0);
       console.log('MIME type:', data.mimeType);
-
+      
       if (!data.audio || data.audio.length === 0) {
         throw new Error('No audio data received');
       }
-
-      // Process the audio data
-      const processedAudio = await processAudioData(data.audio, data.mimeType);
-
-      console.log('Sending audio to Gemini API...');
-
-      // Send audio to Gemini Live API
-      const result = await conversation.sendMessage({
-        contents: [{
-          role: "user",
-          parts: [{
-            inlineData: {
-              mimeType: processedAudio.mimeType,
-              data: data.audio // Use original base64 data
-            }
-          }]
-        }]
+      
+      // For now, we'll simulate a text response since audio-to-text is not implemented
+      // In a real implementation, you would use a speech-to-text service here
+      console.log('Processing audio (simulating text input)...');
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Send a mock response for now
+      const mockResponse = "I understand you're speaking, but I'm currently in text-only mode. Please type your message or I can help you with information about Revolt Motors electric vehicles. What would you like to know?";
+      
+      console.log('Sending mock response:', mockResponse);
+      
+      // Emit the text response
+      socket.emit('ai_response', {
+        text: mockResponse,
+        isInterrupted: false
       });
-
-      console.log('Received response from Gemini');
-      const response = result.response;
-
-      if (response && response.candidates && response.candidates[0]) {
-        const textResponse = response.candidates[0].content.parts[0].text;
-
-        console.log('AI Response:', textResponse);
-
-        // Emit the text response
-        socket.emit('ai_response', {
-          text: textResponse,
-          isInterrupted: false
-        });
-
-        // If there's audio in the response, emit it
-        if (response.candidates[0].content.parts[1] &&
-          response.candidates[0].content.parts[1].inlineData) {
-          const audioData = response.candidates[0].content.parts[1].inlineData.data;
-          console.log('AI audio response received');
-          socket.emit('ai_audio', {
-            audio: audioData,
-            mimeType: response.candidates[0].content.parts[1].inlineData.mimeType
-          });
-        }
-      } else {
-        console.log('No response from AI');
-        socket.emit('error', { message: 'No response from AI assistant' });
-      }
-
+      
     } catch (error) {
       console.error('Error processing audio:', error);
       socket.emit('error', { message: 'Failed to process audio: ' + error.message });
     }
   });
 
+  socket.on('text_message', async (data) => {
+    try {
+      if (!conversation) {
+        socket.emit('error', { message: 'Conversation not started. Please start a conversation first.' });
+        return;
+      }
+
+      console.log('Received text message from socket:', socket.id);
+      console.log('Text:', data.text);
+      
+      if (!data.text || data.text.trim() === '') {
+        throw new Error('No text message received');
+      }
+      
+      console.log('Sending text to Gemini API...');
+      
+      // Send text message to Gemini API
+      const result = await conversation.sendMessage(data.text);
+      
+      console.log('Received response from Gemini');
+      console.log('Result:', result);
+      
+      if (result && result.response && result.response.text) {
+        const responseText = result.response.text();
+        console.log('AI Response:', responseText);
+        
+        // Emit the text response
+        socket.emit('ai_response', {
+          text: responseText,
+          isInterrupted: false
+        });
+      } else {
+        console.log('No response from AI');
+        socket.emit('error', { message: 'No response from AI assistant' });
+      }
+      
+    } catch (error) {
+      console.error('Error processing text message:', error);
+      socket.emit('error', { message: 'Failed to process text message: ' + error.message });
+    }
+  });
+
   socket.on('interrupt', async () => {
     try {
       if (conversation) {
-        // Send interruption signal to Gemini
-        await conversation.sendMessage({
-          contents: [{
-            role: "user",
-            parts: [{
-              text: "[INTERRUPT]"
-            }]
-          }]
-        });
-
+        console.log('Interruption requested');
         socket.emit('interruption_acknowledged');
       }
     } catch (error) {
@@ -218,8 +221,8 @@ io.on('connection', (socket) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
+  res.json({ 
+    status: 'OK', 
     timestamp: new Date().toISOString(),
     model: getModelName(),
     environment: config.server.environment
@@ -236,5 +239,5 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${config.server.environment}`);
   console.log(`Model: ${getModelName()}`);
-  console.log(`Visit http://localhost:${PORT}`);
+  console.log(`Visit http://localhost:${PORT} to use the voice chatbot`);
 }); 

@@ -3,20 +3,20 @@ module.exports = {
   gemini: {
     // Production model (has rate limits)
     production: {
-      model: "gemini-2.5-flash-preview-native-audio-dialog",
-      description: "Native audio dialog model with full voice capabilities"
+      model: "gemini-1.5-flash",
+      description: "Flash model for production use"
     },
     
     // Development model (higher rate limits for testing)
     development: {
-      model: "gemini-2.0-flash-live-001",
-      description: "Flash live model for development and testing"
+      model: "gemini-1.5-flash",
+      description: "Flash model for development and testing"
     },
     
     // Alternative model for testing
     testing: {
-      model: "gemini-live-2.5-flash-preview",
-      description: "Alternative preview model for testing"
+      model: "gemini-1.5-flash",
+      description: "Alternative model for testing"
     }
   },
   

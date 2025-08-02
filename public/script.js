@@ -17,6 +17,8 @@ class VoiceChatbot {
         this.startBtn = document.getElementById('startBtn');
         this.micBtn = document.getElementById('micBtn');
         this.stopBtn = document.getElementById('stopBtn');
+        this.textInput = document.getElementById('textInput');
+        this.sendTextBtn = document.getElementById('sendTextBtn');
         this.statusIndicator = document.getElementById('statusIndicator');
         this.statusText = this.statusIndicator.querySelector('.status-text');
         this.chatMessages = document.getElementById('chatMessages');
@@ -34,6 +36,7 @@ class VoiceChatbot {
             this.addMessage(data.message, 'ai');
             this.updateStatus('Ready to talk', 'ready');
             this.enableMicButton();
+            this.enableTextInput();
         });
 
         this.socket.on('ai_response', (data) => {
@@ -41,6 +44,7 @@ class VoiceChatbot {
             this.addMessage(data.text, 'ai');
             this.updateStatus('Ready to talk', 'ready');
             this.enableMicButton();
+            this.enableTextInput();
         });
 
         this.socket.on('ai_audio', (data) => {
@@ -51,6 +55,7 @@ class VoiceChatbot {
             this.isProcessing = false;
             this.updateStatus('Interrupted - Ready to talk', 'ready');
             this.enableMicButton();
+            this.enableTextInput();
         });
 
         this.socket.on('error', (data) => {
@@ -58,11 +63,13 @@ class VoiceChatbot {
             this.updateStatus(`Error: ${data.message}`, 'error');
             this.isProcessing = false;
             this.enableMicButton();
+            this.enableTextInput();
         });
 
         this.socket.on('disconnect', () => {
             this.updateStatus('Disconnected', 'error');
             this.disableMicButton();
+            this.disableTextInput();
         });
     }
 
@@ -72,6 +79,12 @@ class VoiceChatbot {
         this.micBtn.addEventListener('mouseup', () => this.stopRecording());
         this.micBtn.addEventListener('mouseleave', () => this.stopRecording());
         this.stopBtn.addEventListener('click', () => this.stopConversation());
+        this.sendTextBtn.addEventListener('click', () => this.sendTextMessage());
+        this.textInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.sendTextMessage();
+            }
+        });
 
         // Touch events for mobile
         this.micBtn.addEventListener('touchstart', (e) => {
@@ -96,6 +109,31 @@ class VoiceChatbot {
             this.updateStatus('Failed to start conversation', 'error');
             this.startBtn.disabled = false;
         }
+    }
+
+    sendTextMessage() {
+        const text = this.textInput.value.trim();
+        if (!text) return;
+
+        if (!this.isConversationStarted) {
+            this.addMessage('Please start a conversation first', 'system');
+            return;
+        }
+
+        // Add user message to chat
+        this.addMessage(text, 'user');
+        
+        // Clear input
+        this.textInput.value = '';
+        
+        // Send text message to server
+        this.socket.emit('text_message', { text: text });
+        
+        // Show processing state
+        this.isProcessing = true;
+        this.updateStatus('Processing...', 'processing');
+        this.disableMicButton();
+        this.disableTextInput();
     }
 
     async startRecording() {
@@ -285,7 +323,9 @@ class VoiceChatbot {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
         
-        const icon = sender === 'user' ? 'fas fa-user' : 'fas fa-robot';
+        const icon = sender === 'user' ? 'fas fa-user' : 
+                   sender === 'ai' ? 'fas fa-robot' : 
+                   'fas fa-info-circle';
         
         messageDiv.innerHTML = `
             <div class="message-content">
@@ -313,6 +353,16 @@ class VoiceChatbot {
         this.stopBtn.disabled = true;
     }
 
+    enableTextInput() {
+        this.textInput.disabled = false;
+        this.sendTextBtn.disabled = false;
+    }
+
+    disableTextInput() {
+        this.textInput.disabled = true;
+        this.sendTextBtn.disabled = true;
+    }
+
     showWaveAnimation() {
         this.waveContainer.style.display = 'block';
     }
@@ -330,6 +380,7 @@ class VoiceChatbot {
         this.isConversationStarted = false;
         this.startBtn.disabled = false;
         this.disableMicButton();
+        this.disableTextInput();
         this.updateStatus('Conversation stopped', 'ready');
     }
 }
