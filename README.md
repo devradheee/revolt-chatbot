@@ -50,7 +50,7 @@ npm start
 
 Open your browser and navigate to:
 ```
-
+http://localhost:3001 
 ```
 
 ## Usage
