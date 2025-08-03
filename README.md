@@ -32,11 +32,11 @@ This application uses a **server-to-server architecture** as required by the Gem
 ### 1. Clone the Repository
 
 ```bash
-git clone <https://github.com/devradheee/revolt-chatbot>
+git clone https://github.com/devradheee/revolt-chatbot
 cd revolt-chatbot
 ```
 
-### 4. Start the Application
+### 2. Start the Application
 
 ```bash
 # Development mode with auto-restart
@@ -46,11 +46,11 @@ npm run dev
 npm start
 ```
 
-### 5. Access the Application
+### 3. Access the Application
 
 Open your browser and navigate to:
 ```
-http://localhost:3001
+
 ```
 
 ## Usage

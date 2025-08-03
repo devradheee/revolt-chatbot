@@ -68,5 +68,5 @@ io.on('connection', (socket) => {
 const PORT = 3001;
 server.listen(PORT, () => {
   console.log(`Audio test server running on port ${PORT}`);
-  console.log(`Visit http://localhost:${PORT} to test audio recording`);
+  console.log(`Visit http://localhost:${PORT}`);
 }); 
